@@ -9,7 +9,6 @@ def genDataPairs(filename, searchSize, cutoff):
     plotSearchSize = searchSize
     DBCutoffVal = cutoff
 
-    print(filename)
     stream=ffmpeg.input(filename)
     stream=ffmpeg.output(stream, "audio.tmp.mp3", ar=11025, ac=1)
     stream.run(overwrite_output=True, quiet=True)
@@ -27,16 +26,16 @@ def genDataPairs(filename, searchSize, cutoff):
     mask = (stft == betterPlot) & (stft > DBCutoffVal)
     ret = np.full_like(stft, -80.0)
     ret[mask] = stft[mask] 
-    
+   
     f_indices, t_indices = np.where(mask)
-    result = list(zip(f_indices, t_indices))
-    print(f"Total peaks found: {len(result)}")
-    pps=len(result) // librosa.get_duration(y=audio, sr=sr)
-    print("pps: ", pps)
-    plain_int_tuples = [(int(x), int(y)) for x, y in result]
-    print(plain_int_tuples)
-    
-    sorted_result = sorted(plain_int_tuples, key=lambda x: x[1])
+    time_in_seconds = librosa.frames_to_time(t_indices, sr=sr)
+    freq_map = librosa.fft_frequencies(sr=sr, n_fft=2048)
+    freq_in_hz = freq_map[f_indices]
+    result = list(zip(freq_in_hz, time_in_seconds))
+    pps = len(result) // librosa.get_duration(y=audio, sr=sr)
+    formatted_tuples = [(round(float(f), 2), round(float(t), 2)) for f, t in result]
+    sorted_result = sorted(formatted_tuples, key=lambda x: x[0])
+    print(sorted_result)
 
     os.remove("audio.tmp.mp3")
     os.remove("audio.out.mp3")
@@ -51,6 +50,3 @@ for file in files:
     pps, total = genDataPairs(file, 15, -38)
     ppss.append(pps)
     totals.append(total)
-
-print("mean pps:", np.mean(ppss))
-print("mean totals:", np.mean(totals))

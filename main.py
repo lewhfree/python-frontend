@@ -6,6 +6,8 @@ from scipy import ndimage
 import os
 import struct
 import xxhash
+import json
+import requests
 
 NUM_O_FANS = 3
 N_FFT=2048
@@ -16,9 +18,10 @@ INBETWEEN_SAMPLE_RATE=11025
 DB_CUTOFF_VAL=-38
 PLOT_SEARCH_SIZE=15
 FRAME_WIDTH_T=HOP_LENGTH/FINAL_SAMPLE_RATE
+SERVER_HOSTNAME="http://localhost"
+SERVER_PORT=8080
 
 def genDataPairs(filename):
-
     stream=ffmpeg.input(filename)
     stream=ffmpeg.output(stream, "audio.tmp.mp3", ar=INBETWEEN_SAMPLE_RATE, ac=1)
     stream.run(overwrite_output=True, quiet=True)
@@ -47,16 +50,17 @@ def genDataPairs(filename):
     
     return sorted_result
 
-files = glob.glob("music/*")
-files = ["music/audio.flac"]
-hashes = []
-for file in files:
+def computeAndSend(fileName, apiEndpoint, spotifyKey=None):
+    file = fileName
+    hashes = []
+    times = []
     results = genDataPairs(file)
     for i in range(len(results)):
         origin = results[i]
         window_min = TIME_WINDOW
         fans_found = 0
-        for j in range(1,100 if (100+i)<len(results) else 0):
+        search_limit = min(100, len(results) - i)
+        for j in range(1, search_limit):
             if ((origin[0] + window_min) <= results[i+j][0]) and fans_found < NUM_O_FANS:
                 window_min += 1
                 fans_found += 1 
@@ -65,8 +69,30 @@ for file in files:
                 origin_freq = origin[1]
                 end_freq = point[1]
                 packed_bytes = struct.pack("<III", delta_t, origin_freq, end_freq)
-                hash = xxhash.xxh64(packed_bytes).intdigest()
-                t=FRAME_WIDTH_T*origin[0]*1000
-                hashes.append((hash, t))
+                hash = xxhash.xxh64(packed_bytes).hexdigest()
+                t=int(FRAME_WIDTH_T*origin[0]*1000)
+                times.append(t)
+                hashes.append(hash)
 
-#send the hashes to the server for ingestion
+    if spotifyKey!=None:
+        json_object = {
+            "spotify": spotifyKey,
+            "hashlist": hashes,
+            "offsetlist": times,
+        }
+    else:    
+        json_object = {
+            "hashlist": hashes,
+            "offsetlist": times,
+        }
+    x=requests.post(SERVER_HOSTNAME+":"+str(SERVER_PORT)+"/"+apiEndpoint, json=json_object)
+    print(x.text)
+
+    print("uploaded file")
+
+    # files = ["music/audio.flac"]
+    # files = ["music/07 - Pink Floyd - Us and Them.flac"]
+    # files = ["./Mar 25 at 9-37 PM.mp3"]
+    # files = ["music/09 - Charli xcx - party 4 u.flac"]
+    # files = ["./party.mp3"]
+computeAndSend("./party.mp3", "multiget")

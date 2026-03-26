@@ -90,4 +90,3 @@ def computeAndSend(fileName, apiEndpoint, spotifyKey=None):
 
     print("uploaded file")
 
-computeAndSend("./party.mp3", "multiget")

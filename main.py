@@ -90,9 +90,4 @@ def computeAndSend(fileName, apiEndpoint, spotifyKey=None):
 
     print("uploaded file")
 
-    # files = ["music/audio.flac"]
-    # files = ["music/07 - Pink Floyd - Us and Them.flac"]
-    # files = ["./Mar 25 at 9-37 PM.mp3"]
-    # files = ["music/09 - Charli xcx - party 4 u.flac"]
-    # files = ["./party.mp3"]
 computeAndSend("./party.mp3", "multiget")
